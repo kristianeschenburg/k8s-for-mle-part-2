@@ -1,0 +1,60 @@
+services:
+  user_backend:
+    build:
+      context: ./user_backend
+      dockerfile: docker/Dockerfile
+    image: user-backend:latest
+    environment:
+      DATA_FILE: ${DATA_FILE:-default_users.csv}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      default:
+        aliases: [user-backend]
+  
+  salary_backend:
+    build:
+      context: ./salary_backend
+      dockerfile: docker/Dockerfile
+    image: salary-backend:latest
+    environment:
+      BACKEND_URL: http://user-backend:8000
+    ports:
+      - "8001:8001"
+    depends_on:
+      user_backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: docker/Dockerfile
+    image: part-2-frontend:latest
+    environment:
+      BACKEND_URL: http://user-backend:8000
+    ports:
+      - "8050:8050"
+    depends_on:
+      user_backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8050/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped

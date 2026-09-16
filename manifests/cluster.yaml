@@ -1,0 +1,43 @@
+# kind cluster for part 2.
+#
+# Two decisions worth knowing about (see notes.md, "Cluster prep"):
+#
+# 1. The default CNI (kindnet) is KEPT. kindnet enforces NetworkPolicy as of
+#    kindnetd v20260820 (verified empirically -- see notes.md, "Prep item 1"),
+#    so there is no need for `disableDefaultCNI: true` + Calico/Cilium here.
+#
+# 2. extraPortMappings replace MetalLB as the way into the cluster from macOS.
+#    Docker Desktop runs containers in a Linux VM, and the Mac has no route to
+#    kind's Docker bridge network, so a MetalLB LoadBalancer IP (172.18.255.x)
+#    is unreachable from the host. A published host port always works.
+---
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  # The ingress/gateway data plane lands here, per the kind ingress docs.
+  # ingress-nginx's kind manifest selects `ingress-ready=true` and tolerates
+  # the control-plane taint, so app workloads still schedule on the worker.
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  # ingress-nginx (Ingress + IngressController)
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  # Reserved for the Gateway API controller, so both data planes can run at
+  # once and be compared side by side instead of fighting over :80.
+  - containerPort: 8080
+    hostPort: 8080
+    protocol: TCP
+  - containerPort: 8443
+    hostPort: 8443
+    protocol: TCP
+- role: worker

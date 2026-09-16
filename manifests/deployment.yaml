@@ -1,0 +1,153 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: part-2-users
+  name: part-2-users
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: part-2-users
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: part-2-users
+    spec:
+      containers:
+      - image: user-backend:latest
+        ports:
+          - containerPort: 8000
+        name: users
+        resources: {}
+        imagePullPolicy: Never
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5  # Time to wait before first check
+          periodSeconds: 10       # How often to check
+          timeoutSeconds: 2       # Timeout for response
+          failureThreshold: 3     # Number of failures before restarting
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 5  # Time to wait before first check
+          periodSeconds: 5       # How often to check
+          timeoutSeconds: 2       # Timeout for response
+          failureThreshold: 3     # Number of failures before restarting
+        env:
+        - name: DATA_FILE
+          valueFrom:
+            configMapKeyRef:
+              name: platform
+              key: data_file
+        - name: SLEEP_DURATION
+          valueFrom:
+            configMapKeyRef:
+              name: platform
+              key: sleep_duration
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: part-2-salary
+  name: part-2-salary
+  namespace: client-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: part-2-salary
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: part-2-salary
+    spec:
+      containers:
+      - image: salary-backend:latest
+        ports:
+          - containerPort: 8001
+        name: salary
+        resources: {}
+        imagePullPolicy: Never
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8001
+          initialDelaySeconds: 5  # Time to wait before first check
+          periodSeconds: 10       # How often to check
+          timeoutSeconds: 2       # Timeout for response
+          failureThreshold: 3     # Number of failures before restarting
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8001
+          initialDelaySeconds: 5  # Time to wait before first check
+          periodSeconds: 5       # How often to check
+          timeoutSeconds: 2       # Timeout for response
+          failureThreshold: 3     # Number of failures before restarting
+        env:
+        - name: BACKEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: client-a
+              key: backend_url
+status: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: part-2-frontend
+  name: part-2-frontend
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: part-2-frontend
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: part-2-frontend
+    spec:
+      containers:
+      - image: part-2-frontend:latest
+        ports:
+          - containerPort: 8050
+        name: frontend
+        resources: {}
+        imagePullPolicy: Never
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8050
+          initialDelaySeconds: 5  # Time to wait before first check
+          periodSeconds: 10       # How often to check
+          timeoutSeconds: 2       # Timeout for response
+          failureThreshold: 3     # Number of failures before restarting
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8050
+          initialDelaySeconds: 5  # Time to wait before first check
+          periodSeconds: 5       # How often to check
+          timeoutSeconds: 2       # Timeout for response
+          failureThreshold: 3     # Number of failures before restarting
+        env:
+        - name: BACKEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: platform
+              key: backend_url
+status: {}

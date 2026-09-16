@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-backend
+  namespace: platform
+spec:
+  selector:
+    app: part-2-users
+  ports:
+  - port: 8000
+    targetPort: 8000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: part-2-frontend
+  namespace: platform
+spec:
+  selector:
+    app: part-2-frontend
+  ports:
+  - port: 8050
+    targetPort: 8050
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salary-backend
+  namespace: client-a
+spec:
+  selector:
+    app: part-2-salary
+  ports:
+  - port: 8001
+    targetPort: 8001
+    

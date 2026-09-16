@@ -1,0 +1,40 @@
+# Three namespaces: one shared platform, two tenants.
+#
+# Kept in sync with charts/values.yaml on purpose -- the chart is the source of
+# truth for a fresh cluster, this file is what you `kubectl apply` against a
+# cluster whose namespaces already exist (Helm refuses to adopt objects it did
+# not create). See notes.md, "Prep item 3".
+#
+# The labels drive NetworkPolicy namespaceSelectors and RoleBinding scope:
+#   tier=platform     shared services
+#   tier=tenant       customer workloads
+#   platform-access   granted to client-a, withheld from client-b so that
+#                     client-b is the negative control in the policy demos
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform
+  labels:
+    team: mle-platform
+    part-of: k8s-for-mle-part-2
+    tier: platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: client-a
+  labels:
+    team: mle-platform
+    part-of: k8s-for-mle-part-2
+    tier: tenant
+    platform-access: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: client-b
+  labels:
+    team: mle-platform
+    part-of: k8s-for-mle-part-2
+    tier: tenant

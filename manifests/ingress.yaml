@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform
+  namespace: platform
+  annotations:
+    # Captures everything after the path and rewrites it to the root of the application
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx # Links this manifest to your NGINX controller
+  rules:
+  - host: apps.part-2.com
+    http:
+      paths:
+      - path: /user-backend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: user-backend
+            port:
+              number: 8000
+
+---
+# The frontend gets its own Ingress because Dash serves everything under
+# url_base_pathname='/frontend/', so the prefix must NOT be rewritten away.
+# (rewrite-target is an Ingress-wide annotation, so it can't be disabled per path.)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform-frontend
+  namespace: platform
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: apps.part-2.com
+    http:
+      paths:
+      - path: /frontend
+        pathType: Prefix
+        backend:
+          service:
+            name: part-2-frontend
+            port:
+              number: 8050
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: client-a
+  namespace: client-a
+  annotations:
+    # Captures everything after the path and rewrites it to the root of the application
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx # Links this manifest to your NGINX controller
+  rules:
+  - host: apps.part-2.com
+    http:
+      paths:
+      - path: /salary-backend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: salary-backend
+            port:
+              number: 8001
