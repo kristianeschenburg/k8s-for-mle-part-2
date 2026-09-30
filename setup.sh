@@ -68,7 +68,6 @@ kubectl apply -f deployment.yaml
 # create the Gateway and the routes that attach to it
 kubectl apply -f gateway.yaml
 kubectl apply -f httproute.yaml
-kubectl apply -f httproute-backends.yaml
 
 kubectl rollout status -n dex deployment/dex --timeout=3m
 kubectl wait --for=condition=Ready pods --all -n platform --timeout=3m
