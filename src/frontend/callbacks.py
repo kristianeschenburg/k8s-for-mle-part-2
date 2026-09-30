@@ -23,17 +23,23 @@ def update_main(n, name, currency):
     if not n or not name:
         return no_update
 
-    user, user_status = fetch(USER_BACKEND_URL, '/user', name=name)
+    # Direct path (blocked by network policy)
+    user_direct, user_direct_status = fetch(USER_BACKEND_URL, '/user', name=name)
+
+    # Indirect path (allowed by network policy)
+    user_indirect, user_indirect_status = fetch(SALARY_BACKEND_URL, '/user', name=name)
+
     salary, salary_status = fetch(SALARY_BACKEND_URL, '/salary', name=name, currency=currency)
     age, age_status = fetch(SALARY_BACKEND_URL, '/age', name=name)
 
     # One line per network edge, so a blocked edge is visible by name.
     return [
-        html.Li(f'frontend → user-backend: {user_status}'),
+        html.Li(f'frontend → user-backend (direct): {user_direct_status}'),
+        html.Li(f'frontend → salary-backend → user-backend (indirect): {user_indirect_status}'),
         html.Li(f'frontend → salary-backend /salary: {salary_status}'),
         html.Li(f'frontend → salary-backend /age (→ user-backend): {age_status}'),
         html.Hr(),
-        html.Li(summarize(name, user, salary, age)),
+        html.Li(summarize(name, user_indirect, salary, age)),
     ]
 
 

@@ -40,6 +40,15 @@ def ready_check():
 
 
 # here we can test allow/prohibit service-to-service communication with network policies
+@app.get('/user')
+def get_user(name: str):
+    """
+    User endpoint proxies to the user backend.
+    This demonstrates the indirect path: frontend → salary → user
+    """
+    return get_user_from_backend(name)
+
+
 @app.get('/age')
 def get_age(name: str):
     """
