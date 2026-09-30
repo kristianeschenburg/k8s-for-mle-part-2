@@ -7,12 +7,15 @@ import pandas as pd
 import requests
 import uvicorn
 
-from constants import DEFAULT_USERS_BACKEND_URL
+from constants import DEFAULT_USER_BACKEND_URL, DEFAULT_FX_URL
 
 CACHED = False
 SLEEP_DURATION = int(os.environ.get('SLEEP_DURATION', 10))
-BACKEND_URL = os.environ.get('BACKEND_URL', DEFAULT_USERS_BACKEND_URL)
-REQUEST_TIMEOUT = float(os.environ.get('REQUEST_TIMEOUT', 5))
+USER_BACKEND_URL = os.environ.get('USER_BACKEND_URL', DEFAULT_USER_BACKEND_URL)
+FX_URL = os.environ.get('FX_URL', DEFAULT_FX_URL)
+# Shorter than the frontend's timeout, so our 502 reaches the frontend
+# before it gives up on us.
+REQUEST_TIMEOUT = float(os.environ.get('REQUEST_TIMEOUT', 3))
 
 
 def long_function():
@@ -36,23 +39,29 @@ def ready_check():
     return 'OK'
 
 
+# here we can test allow/prohibit service-to-service communication with network policies
 @app.get('/age')
 def get_age(name: str):
     """
-    Age endpoint goes through the backend API to first check if the user exists.
+    Age endpoint goes through the user backend to first check if the user exists.
     """
     get_user_from_backend(name)
     return get_age_from_csv(name)
 
 
 @app.get('/salary')
-def salary(name: str):
+def salary(name: str, currency: str = 'USD'):
     """
-    Look up a user's salary in the salary table.
+    Look up a user's salary, optionally converted via the external FX service.
     """
-    return get_salary_from_csv(name)
+    record = get_salary_from_csv(name)[0]
+    if currency != 'USD':
+        record['salary'] = round(record['salary'] * get_rate(currency), 2)
+    record['currency'] = currency
+    return record
 
 
+# here we can test allow/prohibit service-to-service communication with network policies
 def get_user_from_backend(name: str):
     """
     Get a user from the user backend.
@@ -70,7 +79,7 @@ def get_user_from_backend(name: str):
 
     try:
         response = requests.get(
-            f'{BACKEND_URL}/user', params=params, headers=headers, timeout=REQUEST_TIMEOUT
+            f'{USER_BACKEND_URL}/user', params=params, headers=headers, timeout=REQUEST_TIMEOUT
         )
     except requests.RequestException as e:
         raise HTTPException(
@@ -90,6 +99,32 @@ def get_user_from_backend(name: str):
         )
 
     return response.json()
+
+
+def get_rate(currency: str):
+    """
+    Get an exchange rate from the FX service, which lives outside the cluster.
+
+    Raises an HTTPException with 502 if the FX service is unreachable (e.g.
+    blocked by an egress policy), or 404 if the currency is unknown.
+    """
+    try:
+        response = requests.get(f'{FX_URL}/rates.json', timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"FX service unreachable: {e}"
+        ) from e
+
+    rates = response.json()
+    if currency not in rates:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown currency {currency}"
+        )
+
+    return rates[currency]
 
 
 def get_age_from_csv(name: str):

@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/tmp/poetry_cache \
     done; \
     [ "$s" = ok ] || { echo "poetry install failed after retries"; exit 1; }
 
-COPY callbacks.py layouts.py main.py constants.py ./
+COPY callbacks.py layouts.py main.py constants.py pods.py ./
 
 EXPOSE 8050
 

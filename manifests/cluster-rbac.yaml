@@ -1,0 +1,44 @@
+# platform admin has full global admin cluster-wide
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-platform-admin-binding
+subjects:
+- kind: Group
+  name: "platform-admins" # for Dex
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin # K8s superuser role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# client-a isolated to it's namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: oidc-client-a-binding
+  namespace: client-a # namespace-restricted
+subjects:
+- kind: Group
+  name: "clients-a"  # for Dex
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: edit # K8s role allowing read/write on workloads, but no RBAC manipulation
+  apiGroup: rbac.authorization.k8s.io
+  
+---
+# observer has cluster-wide read-only access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-observer-binding
+subjects:
+- kind: Group
+  name: "observers" # for Dex
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: view #  K8s role allowing global read-only access
+  apiGroup: rbac.authorization.k8s.io

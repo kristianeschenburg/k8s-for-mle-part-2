@@ -1,38 +1,16 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: platform
-  namespace: platform
-  annotations:
-    # Captures everything after the path and rewrites it to the root of the application
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-spec:
-  ingressClassName: nginx # Links this manifest to your NGINX controller
-  rules:
-  - host: apps.part-2.com
-    http:
-      paths:
-      - path: /user-backend(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: user-backend
-            port:
-              number: 8000
+# ingress rules are namespaced
 
----
-# The frontend gets its own Ingress because Dash serves everything under
-# url_base_pathname='/frontend/', so the prefix must NOT be rewritten away.
-# (rewrite-target is an Ingress-wide annotation, so it can't be disabled per path.)
+# The frontend gets its own Ingress with no rewrite: Dash serves everything
+# under url_base_pathname='/frontend/', so the path must be passed through as-is.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: platform-frontend
-  namespace: platform
+  name: frontend
+  namespace: client-a
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx # links this manifest to the NGINX controller
   rules:
-  - host: apps.part-2.com
+  - host: apps.part-2.test
     http:
       paths:
       - path: /frontend
@@ -44,18 +22,43 @@ spec:
               number: 8050
 
 ---
+# OPTIONAL -- for Ingress vs. Gateway API comparison only (see httproute-backends.yaml).
+# With network-policies.yaml applied, these are blocked: the backends only
+# accept traffic from their in-cluster callers.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: client-a
-  namespace: client-a
+  name: platform
+  namespace: platform
   annotations:
     # Captures everything after the path and rewrites it to the root of the application
     nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
-  ingressClassName: nginx # Links this manifest to your NGINX controller
+  ingressClassName: nginx
   rules:
-  - host: apps.part-2.com
+  - host: apps.part-2.test
+    http:
+      paths:
+      - path: /user-backend(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: user-backend
+            port:
+              number: 8000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: salary-backend
+  namespace: client-a
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: apps.part-2.test
     http:
       paths:
       - path: /salary-backend(/|$)(.*)

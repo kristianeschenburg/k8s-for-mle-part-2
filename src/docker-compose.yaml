@@ -25,12 +25,15 @@ services:
       dockerfile: docker/Dockerfile
     image: salary-backend:latest
     environment:
-      BACKEND_URL: http://user-backend:8000
+      USER_BACKEND_URL: http://user-backend:8000
+      FX_URL: http://fx-rates
     ports:
       - "8001:8001"
     depends_on:
       user_backend:
         condition: service_healthy
+      fx_rates:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8001/healthz"]
       interval: 10s
@@ -38,6 +41,22 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    networks:
+      default:
+        aliases: [salary-backend]
+
+  # Stands in for a service outside the cluster. In kind it runs as a plain
+  # container on the "kind" docker network (setup.sh starts it and wires in its IP).
+  fx_rates:
+    image: nginx:alpine
+    volumes:
+      - ./fx_rates:/usr/share/nginx/html:ro
+    ports:
+      - "8090:80"
+    restart: unless-stopped
+    networks:
+      default:
+        aliases: [fx-rates]
 
   frontend:
     build:
@@ -45,11 +64,14 @@ services:
       dockerfile: docker/Dockerfile
     image: part-2-frontend:latest
     environment:
-      BACKEND_URL: http://user-backend:8000
+      USER_BACKEND_URL: http://user-backend:8000
+      SALARY_BACKEND_URL: http://salary-backend:8001
     ports:
       - "8050:8050"
     depends_on:
       user_backend:
+        condition: service_healthy
+      salary_backend:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8050/healthz"]

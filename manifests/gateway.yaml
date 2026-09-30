@@ -1,0 +1,83 @@
+# Gateway API entry point, implemented by Envoy Gateway.
+#
+# Install the controller (and the Gateway API CRDs it bundles) first:
+#   kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.9.1/install.yaml
+#
+# Ownership split, which is the point of the Gateway API:
+#   GatewayClass + EnvoyProxy  cluster operator  (which implementation, how it runs)
+#   Gateway                    platform team     (listeners, which namespaces may attach)
+#   HTTPRoute                  each tenant       (their own paths, in their own namespace)
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-gateway
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: kind-hostport
+    namespace: envoy-gateway-system
+
+---
+# How the Envoy data plane runs on kind. There is no load balancer here, so
+# instead of a LoadBalancer Service the proxy pod binds hostPort 8080 on the
+# control-plane node, which cluster.yaml maps to 8080 on the Mac.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: kind-hostport
+  namespace: envoy-gateway-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: ClusterIP
+      envoyDeployment:
+        replicas: 1   # a hostPort can only be bound by one pod per node
+        pod:
+          # The control-plane is the node with the 8080 port mapping.
+          nodeSelector:
+            ingress-ready: "true"
+          tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              template:
+                spec:
+                  containers:
+                  - name: envoy
+                    ports:
+                    - containerPort: 8080
+                      hostPort: 8080
+                      protocol: TCP
+
+---
+# Owned by the platform team. Routes may attach from platform and tenant
+# namespaces only -- the namespace label is the grant.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: apps
+  namespace: platform
+spec:
+  gatewayClassName: envoy-gateway
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 8080
+    hostname: apps.part-2.test
+    allowedRoutes:
+      namespaces:
+        from: Selector
+        selector:
+          matchExpressions:
+          - key: tier
+            operator: In
+            values: [platform, tenant]

@@ -1,6 +1,0 @@
-apiVersion: v2
-name: part-2-setup
-description: A Helm chart to provision environments and namespaces
-type: application
-version: 0.1.0
-appVersion: "1.0.0"

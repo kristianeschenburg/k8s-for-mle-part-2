@@ -1,0 +1,54 @@
+# we set up extra ingress ports for 80/443 and 8080/8443 to enable comparison of
+# the ingress controller vs. the Gateway API approach -- they don't conflict
+# this is purely for demonstration purposes and isn't actually needed to run
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: user-backend
+  namespace: platform
+spec:
+  parentRefs:
+  - name: apps
+  hostnames:
+  - apps.part-2.test
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /user-backend
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: user-backend
+      port: 8000
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: salary-backend
+  namespace: client-a
+spec:
+  parentRefs:
+  - name: apps
+    namespace: platform
+  hostnames:
+  - apps.part-2.test
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /salary-backend
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: salary-backend
+      port: 8001

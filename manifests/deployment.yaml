@@ -1,3 +1,13 @@
+# three deployments
+## platform namespace
+#### user-backend
+
+## client-a namespace
+#### salary-backend
+#### frontend
+
+# can see why using Helm charts / tempaltes here would be useful
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,6 +26,7 @@ spec:
       labels:
         app: part-2-users
     spec:
+      serviceAccountName: user-backend-sa
       containers:
       - image: user-backend:latest
         ports:
@@ -27,18 +38,18 @@ spec:
           httpGet:
             path: /healthz
             port: 8000
-          initialDelaySeconds: 5  # Time to wait before first check
-          periodSeconds: 10       # How often to check
-          timeoutSeconds: 2       # Timeout for response
-          failureThreshold: 3     # Number of failures before restarting
+          initialDelaySeconds: 5 
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /ready
             port: 8000
-          initialDelaySeconds: 5  # Time to wait before first check
-          periodSeconds: 5       # How often to check
-          timeoutSeconds: 2       # Timeout for response
-          failureThreshold: 3     # Number of failures before restarting
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
         env:
         - name: DATA_FILE
           valueFrom:
@@ -71,6 +82,7 @@ spec:
       labels:
         app: part-2-salary
     spec:
+      serviceAccountName: salary-backend-sa
       containers:
       - image: salary-backend:latest
         ports:
@@ -82,25 +94,34 @@ spec:
           httpGet:
             path: /healthz
             port: 8001
-          initialDelaySeconds: 5  # Time to wait before first check
-          periodSeconds: 10       # How often to check
-          timeoutSeconds: 2       # Timeout for response
-          failureThreshold: 3     # Number of failures before restarting
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /ready
             port: 8001
-          initialDelaySeconds: 5  # Time to wait before first check
-          periodSeconds: 5       # How often to check
-          timeoutSeconds: 2       # Timeout for response
-          failureThreshold: 3     # Number of failures before restarting
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
         env:
-        - name: BACKEND_URL
+        - name: USER_BACKEND_URL
           valueFrom:
             configMapKeyRef:
               name: client-a
-              key: backend_url
-status: {}
+              key: user_backend_url
+        - name: FX_URL
+          valueFrom:
+            configMapKeyRef:
+              name: client-a
+              key: fx_url
+        - name: SLEEP_DURATION
+          valueFrom:
+            configMapKeyRef:
+              name: client-a
+              key: sleep_duration
 
 ---
 apiVersion: apps/v1
@@ -109,7 +130,7 @@ metadata:
   labels:
     app: part-2-frontend
   name: part-2-frontend
-  namespace: platform
+  namespace: client-a
 spec:
   replicas: 1
   selector:
@@ -121,6 +142,7 @@ spec:
       labels:
         app: part-2-frontend
     spec:
+      serviceAccountName: part-2-frontend-sa
       containers:
       - image: part-2-frontend:latest
         ports:
@@ -132,22 +154,42 @@ spec:
           httpGet:
             path: /healthz
             port: 8050
-          initialDelaySeconds: 5  # Time to wait before first check
-          periodSeconds: 10       # How often to check
-          timeoutSeconds: 2       # Timeout for response
-          failureThreshold: 3     # Number of failures before restarting
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /ready
             port: 8050
-          initialDelaySeconds: 5  # Time to wait before first check
-          periodSeconds: 5       # How often to check
-          timeoutSeconds: 2       # Timeout for response
-          failureThreshold: 3     # Number of failures before restarting
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 3
         env:
-        - name: BACKEND_URL
+        - name: USER_BACKEND_URL
           valueFrom:
             configMapKeyRef:
-              name: platform
-              key: backend_url
+              name: client-a
+              key: user_backend_url
+        - name: SALARY_BACKEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: client-a
+              key: salary_backend_url
+        - name: REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: client-a
+              key: request_timeout
+        - name: POD_PANEL_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              name: client-a
+              key: pod_panel_namespaces
+        # the pod panel lists pods in its own namespace (downward API)
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
 status: {}

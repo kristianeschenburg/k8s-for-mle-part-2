@@ -4,9 +4,8 @@ metadata:
   name: platform
   namespace: platform
 data:
-  # property-like keys; each key maps to a simple value
-  backend_url: "http://user-backend:8000"
-  data_file: "special_users.csv"
+  # default_users.csv matches the salary/age tables; special_users.csv shares no names with them
+  data_file: "default_users.csv" # we can initiate a rollout by changing the config
   sleep_duration: "10"
 
 ---
@@ -16,6 +15,13 @@ metadata:
   name: client-a
   namespace: client-a
 data:
-  # property-like keys; each key maps to a simple value
+  # configmaps are namespace-scoped
   # user-backend lives in the platform namespace, so the short name won't resolve from here
-  backend_url: "http://user-backend.platform.svc.cluster.local:8000"
+  user_backend_url: "http://user-backend.platform.svc.cluster.local:8000"
+  salary_backend_url: "http://salary-backend:8001"
+  # placeholder: setup.sh swaps 172.18.0.100 for the fx-rates container's real IP
+  # point this at any other IP (e.g. an fx-decoy container) and the egress policy blocks it
+  fx_url: "http://172.18.0.100"
+  sleep_duration: "10"
+  request_timeout: "8"
+  pod_panel_namespaces: "platform"

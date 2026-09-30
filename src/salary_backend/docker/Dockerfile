@@ -22,9 +22,9 @@ RUN --mount=type=cache,target=/tmp/poetry_cache \
     done; \
     [ "$s" = ok ] || { echo "poetry install failed after retries"; exit 1; }
 
-COPY salaries.csv ages.csv main.py ./
+COPY salaries.csv ages.csv main.py constants.py ./
 
-EXPOSE 8000
+EXPOSE 8001
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "main.py"]

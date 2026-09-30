@@ -1,0 +1,93 @@
+# mocked OIDC provider using Dex for the local Kind cluster
+#
+# the Dex config and TLS material are created from files rather than inlined here:
+#   kubectl create configmap dex-config -n dex --from-file=config.yaml=dex-config.yaml
+#   kubectl create secret tls dex-tls -n dex --cert=dex-tls/tls.crt --key=dex-tls/tls.key
+
+# create a separate namespace for Dex
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dex
+  labels:
+    team: mle-platform
+    part-of: k8s-for-mle-part-2
+    tier: platform
+
+---
+# create separate deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: dex
+  name: dex
+  namespace: dex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dex
+  template:
+    metadata:
+      labels:
+        app: dex
+    spec:
+      # pinned to the control-plane -- node with the 32000 port mapping (see below)
+      nodeSelector:
+        ingress-ready: "true"
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+
+      # Dex image
+      containers:
+      - image: ghcr.io/dexidp/dex:v2.45.1
+        name: dex
+        command: ["/usr/local/bin/dex", "serve", "/etc/dex/cfg/config.yaml"]
+        ports:
+          - containerPort: 5556
+            name: https
+        
+        # mount the generated tls secret + key
+        volumeMounts:
+        - name: config
+          mountPath: /etc/dex/cfg
+        - name: tls
+          mountPath: /etc/dex/tls
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 5556
+            scheme: HTTPS
+          initialDelaySeconds: 2
+          periodSeconds: 5
+      
+      # get tls secret + key from mounts
+      volumes:
+      - name: config
+        configMap:
+          name: dex-config
+      - name: tls
+        secret:
+          secretName: dex-tls
+
+---
+# expose the Dex application
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex
+  namespace: dex
+spec:
+  type: NodePort
+  selector:
+    app: dex
+  ports:
+  - name: https
+    port: 5556
+    targetPort: 5556
+
+    # must match the dex-config
+    nodePort: 32000

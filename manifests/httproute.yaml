@@ -1,0 +1,25 @@
+# the frontend is the only thing that's exposed outside the cluster
+# Lives in the tenant's (client-a) namespace and attaches to the platform-owned Gateway.
+
+# Dash app serves everything under url_base_pathname='/frontend/', so the path is
+# forwarded through there
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend
+  namespace: client-a
+spec:
+  parentRefs:
+  - name: apps
+    namespace: platform
+  hostnames:
+  - apps.part-2.test
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /frontend
+    backendRefs:
+    - name: part-2-frontend
+      port: 8050

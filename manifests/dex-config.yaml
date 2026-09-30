@@ -1,0 +1,40 @@
+# has to match the oidc-issuer-url in cluster.yaml exactly.
+issuer: https://kind-control-plane:32000
+storage:
+  type: memory
+web:
+  https: 0.0.0.0:5556
+  tlsCert: /etc/dex/tls/tls.crt
+  tlsKey: /etc/dex/tls/tls.key
+staticClients:
+- id: kubernetes
+  redirectURIs:
+  # kubelogin's default local callback ports
+  - http://localhost:8000
+  - http://localhost:18000
+  name: 'Kubernetes CLI'
+  secret: ZXhhbXBsZS1hcHAtc2VjcmV0
+enablePasswordDB: true
+
+staticPasswords:
+- email: "admin@example.com"
+  # Clean pre-compiled bcrypt hash for 'password'
+  hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  username: "platform-admin"
+  userID: "admin-id-001"
+  groups:
+  - "platform-admins"
+
+- email: "client-a@example.com"
+  hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  username: "client-a-user"
+  userID: "client-a-id-002"
+  groups:
+  - "clients-a"
+
+- email: "observer@example.com"
+  hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  username: "global-observer"
+  userID: "observer-id-003"
+  groups:
+  - "observers"

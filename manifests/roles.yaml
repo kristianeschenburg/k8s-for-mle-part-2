@@ -1,0 +1,57 @@
+#### service accounts for each namespace
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-backend-sa
+  namespace: platform
+# the backends never call the API server, so don't mount a token
+automountServiceAccountToken: false
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: salary-backend-sa
+  namespace: client-a
+automountServiceAccountToken: false
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: part-2-frontend-sa
+  namespace: client-a
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observer-sa
+  namespace: observer
+
+---
+#### frontend callback list pods in its own namespace (src/frontend/pods.py).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: client-a
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: part-2-frontend-pod-reader
+  namespace: client-a
+subjects:
+- kind: ServiceAccount
+  name: part-2-frontend-sa
+  namespace: client-a
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io

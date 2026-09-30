@@ -1,0 +1,121 @@
+# Namespaces are matched on kubernetes.io/metadata.name, which Kubernetes sets
+# on every namespace automatically.
+
+# frontend: only reachable through the ingress controller / gateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: client-a-ingress
+  namespace: client-a
+spec:
+  podSelector:
+    matchLabels:
+      app: part-2-frontend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    # for the gateway api
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: envoy-gateway-system
+    # for the nginx ingress controller (if we want to test both)
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8050
+
+---
+# salary-backend is reachable only from the frontend, and can only call
+# user-backend, the fx-rates container, and cluster DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: salary-egress
+  namespace: client-a
+spec:
+  podSelector:
+    matchLabels:
+      app: part-2-salary
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # allow ingress from frontend (same namespace)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: part-2-frontend
+    # specify the ports
+    ports:
+    - protocol: TCP
+      port: 8001
+
+  egress:
+    # DNS so user-backend.platform.svc.cluster.local resolves from salary backend
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+      - protocol: TCP
+        port: 53
+
+    # fx-rates sits outside the cluster
+    # placeholder: setup.sh swaps 172.18.0.100 for the fx-rates container's real IP
+    # any other IP (e.g. an fx-decoy container) isn't listed so it's blocked
+    - to:
+      - ipBlock:
+          cidr: 172.18.0.100/32
+      ports:
+      - protocol: TCP
+        port: 80
+
+    # user-backend in the platform namespace
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: platform
+        podSelector:
+          matchLabels:
+            app: part-2-users
+      ports:
+      - protocol: TCP
+        port: 8000
+
+
+---
+# user-backend is reachable only from client-a's salary-backend
+# The frontend's direct call to user-backend is blocked here on purpose, so the dashboard
+# shows one blocked edge next to the allowed ones.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-ingress
+  namespace: platform
+spec:
+  podSelector:
+    matchLabels:
+      app: part-2-users
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: client-a
+      podSelector:
+        matchLabels:
+          app: part-2-salary
+    ports:
+    - protocol: TCP
+      port: 8000
+  # no egress rules, user-backend doesn't make outbound calls
